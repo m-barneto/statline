@@ -1,0 +1,15 @@
+{
+  "name": "statline",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Claude Code status line: context meter, plan-limit bars, and run-out estimates with optional gist sync.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "setup": "node install.mjs",
+    "setup:link": "node install.mjs --link",
+    "test": "node test/sim.mjs && node test/synctest.mjs"
+  }
+}

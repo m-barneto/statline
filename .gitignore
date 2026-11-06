@@ -1,0 +1,7 @@
+# Never commit the sync token or personal usage history
+statline-sync.json
+statline-usage.json
+*-sync.log
+*.tmp
+*.bak
+node_modules/
