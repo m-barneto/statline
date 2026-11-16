@@ -53,24 +53,9 @@ async function refresh($: EngineInterface) {
   const path = dir ? `${dir}/statline-usage.json` : null
   let store = parseStore(path ? await $.fs.read(path).catch(() => null) : null)
   const row: Row = [Math.round(now), f?.percentUsed ?? null, fReset, w?.percentUsed ?? null, wReset]
-  let dirty = record(store.samples, row, now)
-
-  // Gist sync through the installed terminal script, at most every 5 minutes.
-  let wantSync = false
-  if (dir && now - (store.lastSync ?? 0) > 300) {
-    const cfg = await $.fs.read(`${dir}/statline-sync.json`).then(JSON.parse).catch(() => null)
-    if (cfg?.gistId && await $.fs.exists(`${dir}/statline.mjs`)) {
-      store.lastSync = now
-      dirty = wantSync = true
-    }
-  }
-  if (dirty && path) {
-    store = { ...store, samples: tidy(store.samples, now) }
+  if (record(store.samples, row, now) && path) {
+    store = { samples: tidy(store.samples, now) }
     await $.fs.write(path, serialize(store)).catch(() => {})
-  }
-  if (wantSync) {
-    void $.process.run(['node', `${dir}/statline.mjs`, '--sync', '--quiet'], { timeoutMs: 60_000 })
-      .catch(() => {})
   }
 
   let five: Limit | null = null, week: Limit | null = null, fiveInfo: FiveInfo | null = null

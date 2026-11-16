@@ -12,4 +12,4 @@ Install:
 /plugin install statline --marketplace m-barneto/statline
 ```
 
-It only reads usage Claude Code already reports and records readings to `~/.claude/statline-usage.json` to learn your usage pattern; it adds nothing to Claude's context. See the [repository README](../README.md) for how to read the band, how the estimates work, and optional sync across computers.
+It only reads usage Claude Code already reports and records readings to `~/.claude/statline-usage.json` to learn your usage pattern; it adds nothing to Claude's context. See the [repository README](../README.md) for how to read the band and how the estimates work.

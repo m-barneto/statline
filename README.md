@@ -64,32 +64,11 @@ Every refresh records a reading (time, 5h %, weekly %, reset times) to `~/.claud
 
 History keeps 6 weeks; readings older than a day are thinned to one per 15 minutes.
 
-## Sync across computers (optional)
-
-Limits are account-wide, so readings from any computer describe the same usage. Sharing the history through a **secret GitHub gist** lets every computer learn from all of it. Sync needs the terminal script installed (the app band triggers it too, when it's there).
-
-1. Create a fine-grained GitHub token with only **Account permissions → Gists: Read and write**.
-2. Create `~/.claude/statline-sync.json`:
-   ```json
-   {
-     "token": "<your token>"
-   }
-   ```
-   (Or set `CLAUDE_USAGE_GIST_TOKEN`, which takes precedence.)
-3. First computer: `node ~/.claude/statline.mjs --sync-setup` — creates the gist and saves its id.
-4. Other computers: `node ~/.claude/statline.mjs --sync-setup <gist-id>`
-
-Syncing then happens in the background at most every 5 minutes; `--sync` syncs on demand. Errors go to `~/.claude/statline-usage-sync.log`.
-
-Secret gists are unlisted, not private: anyone with the link can read them. The gist only ever contains timestamps and percentages — never the token.
-
 ## Files it creates
 
 | File | Contents |
 |---|---|
-| `~/.claude/statline-usage.json` | Usage readings (2-space JSON) |
-| `~/.claude/statline-sync.json` | Gist id and token — keep it out of any repo |
-| `~/.claude/statline-usage-sync.log` | Last sync result |
+| `~/.claude/statline-usage.json` | Usage readings (2-space JSON), kept on this computer only |
 
 ## Repository layout
 
@@ -102,7 +81,7 @@ plugin/                           the app band (Claude Code plugin)
   types/index.d.ts                the plugin's state contract
   tests/statline.test.tsx
 terminal/                         the terminal status line
-  statline.mjs                    the status line script (also handles gist sync)
+  statline.mjs                    the status line script
   install.mjs
   test/
 ```
@@ -114,7 +93,7 @@ Colours: `C` at the top of `plugin/hooks/register.tsx`, and `PALETTE` at the top
 ## Development
 
 ```bash
-npm test               # terminal simulation + sync tests, then the plugin's tests
+npm test               # terminal simulation test, then the plugin's tests
 npm run validate       # claude plugin validate plugin
 claude --plugin-dir plugin   # run a session with your working copy of the band
 ```

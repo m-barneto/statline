@@ -23,7 +23,7 @@ const BAND = {
   },
 } as const
 
-/** Stand in for the engine: no home dir, so no history file and no sync. */
+/** Stand in for the engine: no home dir, so no history file. */
 function engine(on: Parameters<Parameters<typeof test>[1]>[1], fivePct: number, weekPct: number) {
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('session.usage', () => ({ value: usage(fivePct, weekPct) }))

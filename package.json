@@ -11,7 +11,7 @@
     "setup": "node terminal/install.mjs",
     "setup:link": "node terminal/install.mjs --link",
     "test": "npm run test:terminal && npm run test:plugin",
-    "test:terminal": "node terminal/test/sim.mjs && node terminal/test/synctest.mjs",
+    "test:terminal": "node terminal/test/sim.mjs",
     "test:plugin": "claude plugin test plugin",
     "validate": "claude plugin validate plugin"
   }

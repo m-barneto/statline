@@ -8,7 +8,7 @@ export const FIVE = 5 * HOUR
 
 /** [time, 5h %, 5h reset, weekly %, weekly reset]; null where not reported. */
 export type Row = [number, number | null, number | null, number | null, number | null]
-export type Store = { lastSync: number | null; samples: Row[] }
+export type Store = { samples: Row[] }
 export type Projection = { projected: number; outAt: number | null }
 export type FiveInfo = { pct: number; resetsAt: number; outAt: number | null }
 
@@ -19,15 +19,15 @@ export function parseStore(text: string | null): Store {
   try {
     const s = JSON.parse(text ?? '')
     if (Array.isArray(s?.samples)) {
-      return { lastSync: typeof s.lastSync === 'number' ? s.lastSync : null, samples: s.samples }
+      return { samples: s.samples }
     }
   } catch {}
-  return { lastSync: null, samples: [] }
+  return { samples: [] }
 }
 
 /** Same 2-space, one-reading-per-line format the terminal script writes. */
 export const serialize = (s: Store) =>
-  `{\n  "lastSync": ${JSON.stringify(s.lastSync ?? null)},\n  "samples": [\n`
+  `{\n  "samples": [\n`
   + s.samples.map((x) => '    ' + JSON.stringify(x)).join(',\n') + '\n  ]\n}\n'
 
 /** Union by timestamp, sort, keep 6 weeks, thin readings older than a day to one per 15 min. */

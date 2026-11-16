@@ -42,17 +42,4 @@ if (JSON.stringify(settings.statusLine) === JSON.stringify(statusLine)) {
   console.log(`Updated statusLine in ${settingsPath}`);
 }
 
-// 3. Sync status / next steps.
-const syncPath = join(claudeDir, "statline-sync.json");
-let sync = {};
-try { sync = JSON.parse(readFileSync(syncPath, "utf8")); } catch {}
-console.log("");
-if (sync.gistId && (sync.token || process.env.CLAUDE_USAGE_GIST_TOKEN)) {
-  console.log(`Gist sync is set up (${sync.gistId}).`);
-} else {
-  console.log("Optional: share usage history across computers via a secret gist.");
-  console.log(`  1. Put a GitHub token (Gists: read/write) in ${fwd(syncPath)} as {"token": "..."}`);
-  console.log(`  2. First computer:   node "${fwd(target)}" --sync-setup`);
-  console.log(`     Other computers:  node "${fwd(target)}" --sync-setup <gist-id>`);
-}
 console.log("\nRestart Claude Code (or wait for the next refresh) to see it.");

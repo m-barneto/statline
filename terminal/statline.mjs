@@ -1,16 +1,13 @@
 // statline: context + usage status line for Claude Code.
 // Reads the session JSON from stdin (see code.claude.com/docs/en/statusline).
 import { readFileSync, writeFileSync, renameSync, openSync, readSync, fstatSync, closeSync } from "node:fs";
-import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
 
 const HOME_DIR = process.env.USERPROFILE ?? process.env.HOME ?? "";
 const now = Number(process.env.STATLINE_NOW) || Date.now() / 1000;
 const HOUR = 3600, WEEK = 7 * 86400;
+
 // ── usage history ──────────────────────────────────────────────────────
 // Raw readings: [time, 5h %, 5h reset, weekly %, weekly reset] (null if absent).
-// Limits are account-wide, so readings from any computer describe the same
-// usage — merging histories is just a union by timestamp.
 const STORE = process.env.STATLINE_STORE ?? `${HOME_DIR}/.claude/statline-usage.json`;
 const same = (a, b) => a != null && b != null && Math.abs(a - b) <= 120;
 const loadStore = () => {
@@ -18,7 +15,7 @@ const loadStore = () => {
   catch { return {}; }   // missing, corrupt, or old format: start fresh
 };
 const serialize = (s) =>  // 2-space JSON, one reading per line
-  `{\n  "lastSync": ${JSON.stringify(s.lastSync ?? null)},\n  "samples": [\n`
+  `{\n  "samples": [\n`
   + (s.samples ?? []).map((x) => "    " + JSON.stringify(x)).join(",\n") + "\n  ]\n}\n";
 function saveStore(s) {
   try { // write-then-rename so parallel sessions never see a half-written file
@@ -41,87 +38,6 @@ function tidy(samples) {
     if (sameSlot) out[out.length - 1] = s; else out.push(s);
   }
   return out;
-}
-
-// ── gist sync ──────────────────────────────────────────────────────────
-// Shares the history across computers through a secret GitHub gist.
-//   node statline.mjs --sync-setup          create the gist (first computer)
-//   node statline.mjs --sync-setup <id>     use an existing gist (other computers)
-//   node statline.mjs --sync                sync now
-// Needs a GitHub token with Gists read/write: "token" in statline-sync.json,
-// or the CLAUDE_USAGE_GIST_TOKEN environment variable (takes precedence).
-// While set up, the status line syncs in the background every 5 minutes.
-// A custom STATLINE_STORE (tests) never uses the real sync config unless one
-// is given explicitly — test readings must not reach your real gist.
-const SYNC_CONFIG = process.env.STATLINE_SYNC_CONFIG
-  ?? (process.env.STATLINE_STORE ? null : `${HOME_DIR}/.claude/statline-sync.json`);
-const SYNC_LOG = `${STORE.replace(/\.json$/, "")}-sync.log`;
-const GIST_FILE = "claude-usage.json";
-let syncCfg = {};
-if (SYNC_CONFIG) try { syncCfg = JSON.parse(readFileSync(SYNC_CONFIG, "utf8")); } catch {}
-// Token: environment variable if set, otherwise "token" in statline-sync.json.
-const TOKEN = SYNC_CONFIG ? process.env.CLAUDE_USAGE_GIST_TOKEN || syncCfg.token : null;
-
-async function gh(method, path, body) {
-  const api = process.env.STATLINE_GITHUB_API ?? "https://api.github.com";  // override for tests
-  const res = await fetch(`${api}${path}`, {
-    method,
-    headers: { Authorization: `Bearer ${TOKEN}`, Accept: "application/vnd.github+json",
-               "User-Agent": "statline", ...(body ? { "Content-Type": "application/json" } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!res.ok) throw new Error(`GitHub ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  return res.json();
-}
-
-async function syncNow() {
-  const g = await gh("GET", `/gists/${syncCfg.gistId}`);
-  const f = g.files?.[GIST_FILE];
-  let remote = [];
-  if (f) {
-    const text = f.truncated ? await (await fetch(f.raw_url)).text() : f.content;
-    try { remote = JSON.parse(text).samples ?? []; } catch {}
-  }
-  const local = loadStore().samples ?? [];
-  const merged = tidy([...local, ...remote]);
-  saveStore({ lastSync: now, samples: merged });
-  const content = serialize({ samples: merged });
-  if (f?.content !== content) {
-    await gh("PATCH", `/gists/${syncCfg.gistId}`, { files: { [GIST_FILE]: { content } } });
-  }
-  return { local: local.length, remote: remote.length, merged: merged.length };
-}
-
-const cli = process.argv.slice(2);
-if (cli[0] === "--sync" || cli[0] === "--sync-setup") {
-  const log = (m) => { try { writeFileSync(SYNC_LOG, `${new Date().toISOString()} ${m}\n`); } catch {} };
-  try {
-    if (!TOKEN) throw new Error(`No GitHub token: add "token" to ${SYNC_CONFIG} or set CLAUDE_USAGE_GIST_TOKEN.`);
-    if (cli[0] === "--sync-setup") {
-      if (cli[1]) syncCfg.gistId = cli[1];
-      else {
-        const g = await gh("POST", "/gists", {
-          description: "Claude Code usage history (status line)", public: false,
-          files: { [GIST_FILE]: { content: serialize({ samples: tidy(loadStore().samples ?? []) }) } },
-        });
-        syncCfg.gistId = g.id;
-      }
-      writeFileSync(SYNC_CONFIG, JSON.stringify(syncCfg, null, 2) + "\n");
-      console.log(`Gist sync set up: ${syncCfg.gistId}`);
-      console.log(`On your other computers run:  node ~/.claude/statline.mjs --sync-setup ${syncCfg.gistId}`);
-    }
-    if (!syncCfg.gistId) throw new Error("No gist set up yet. Run with --sync-setup first.");
-    const r = await syncNow();
-    const msg = `synced: ${r.local} local + ${r.remote} remote -> ${r.merged} readings`;
-    log(msg);
-    if (process.stdout.isTTY || cli[0] === "--sync-setup" || !cli.includes("--quiet")) console.log(msg);
-  } catch (e) {
-    log(`error: ${e.message}`);
-    if (!cli.includes("--quiet")) console.error(`sync failed: ${e.message}`);
-    process.exitCode = 1;
-  }
-  process.exit();
 }
 
 const input = JSON.parse(readFileSync(0, "utf8") || "{}");
@@ -228,8 +144,7 @@ if (used != null) {
 
 // ── plan limits + run-out estimate ─────────────────────────────────────
 // Sent only for Pro/Max/Ultra (or a gateway spend limit), after the first
-// response. Projections are derived from the reading history (shared across
-// computers when gist sync is on):
+// response. Projections are derived from the reading history:
 //   • 5h window: blends your pace over the last 45 min with the window average,
 //     so speeding up or slowing down shows quickly.
 //   • weekly: learns how much you typically use in each hour of the week
@@ -428,17 +343,7 @@ for (const win of WINDOWS) {   // five_hour first: the weekly projection uses it
   const w = rl[win.key];
   if (w?.used_percentage != null) limits.push(limitSegment(win, w));
 }
-// Background gist sync, at most every 5 minutes (also pulls fresh history
-// when you switch to this computer).
-const wantSync = syncCfg.gistId && TOKEN && now - (store.lastSync ?? 0) > 300;
-if (wantSync) { store.lastSync = now; dirty = true; }
 if (dirty) { store.samples = tidy(store.samples); saveStore(store); }
-if (wantSync) {
-  try {
-    spawn(process.execPath, [fileURLToPath(import.meta.url), "--sync", "--quiet"],
-          { detached: true, stdio: "ignore", windowsHide: true }).unref();
-  } catch {}
-}
 const sl = rl.spend_limit;
 if (sl?.used_percentage != null) {
   const p = sl.used_percentage;
