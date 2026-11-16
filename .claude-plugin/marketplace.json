@@ -1,0 +1,12 @@
+{
+  "name": "statline",
+  "owner": { "name": "m-barneto" },
+  "metadata": { "description": "Claude Code usage display: context meter and plan-limit bars with run-out estimates." },
+  "plugins": [
+    {
+      "name": "statline",
+      "source": "./plugin",
+      "description": "A band above the prompt: model, effort, context meter, and 5-hour / weekly plan-limit bars with run-out estimates."
+    }
+  ]
+}

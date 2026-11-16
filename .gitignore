@@ -5,3 +5,6 @@ statline-usage.json
 *.tmp
 *.bak
 node_modules/
+
+# Written by Claude Code when it loads the plugin (editor types)
+plugin/.claude-plugin/types/

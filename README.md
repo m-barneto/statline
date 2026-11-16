@@ -1,36 +1,62 @@
 # statline
 
-A single-file, dependency-free status line for Claude Code that shows the model, effort, context usage, and your plan limits, with an estimate of whether you'll run out before each limit resets.
+See your Claude Code usage at a glance: model, effort, context, and your 5-hour and weekly plan limits, with an estimate of whether you'll run out before each one resets.
 
 ```
-Opus 5.5 ●●○○○  ·  ██░░░░░░ 305k/1M  ·  █████▒▒▒ 2h 59m ~150% (5:32pm)  ·  ██████▒░ 2d 1h ~97%
+Opus 5.5 ●●○○○  ·  █░░░░░░░ 110k/1M  ·  █████▒▒▒ ~150% 5:41pm/7:21pm  ·  ██████▒░ 2d 1h ~97%
 ```
+
+It comes in two forms that share the same estimates and history:
+
+| | Where it shows | Install |
+|---|---|---|
+| **App band** ([`plugin/`](plugin)) | A row above the prompt in the Claude desktop app's Code tab (and in the terminal) | Claude Code plugin, below |
+| **Terminal status line** ([`terminal/`](terminal)) | Claude Code's status line in a terminal | `node terminal/install.mjs` |
+
+## Reading it
 
 | Part | Meaning |
 |---|---|
 | `Opus 5.5 ●●○○○` | Model and effort level (low ●○○○○ … max ●●●●●) |
-| `██░░░░░░ 305k/1M` | Context window used / size |
-| `█████▒▒▒ 2h 59m` | 5-hour limit: █ used, ▒ projected by reset, ░ headroom; time until reset |
-| `██████▒░ 2d 1h` | Weekly limit, same layout |
+| `█░░░░░░░ 110k/1M` | Context window used / size |
+| `██████▒░ 2d 1h` | A plan limit: █ used, ▒ projected by reset at your pace, ░ headroom; time until reset |
 | `~97%` (yellow) | Close call: projected 90–99% by reset |
-| `~150% (5:32pm)` (red) | On pace to run out: projected total at your pace, and when you'd hit the limit |
+| `~150% 5:41pm/7:21pm` (red) | On pace to run out: projected total, when you'd hit the limit / when it resets |
 
-Limit bars only appear on Pro / Max / Ultra plans (Claude Code sends them after the session's first reply). Without them, the estimated session cost is shown instead.
+The first limit bar is the 5-hour window, the second the weekly one. Limit bars appear on Pro / Max / Ultra plans once a session has had its first reply; without them the estimated session cost is shown instead.
 
-## Install
+## Install the app band
+
+In a terminal Claude Code session:
+
+```
+/plugin install statline --marketplace m-barneto/statline
+```
+
+Answer `y` to add the marketplace, then pick a scope (user scope makes it load everywhere, the desktop app included). Or from a shell:
+
+```bash
+claude plugin install statline --marketplace m-barneto/statline
+```
+
+In the desktop app: click **+** next to the prompt box → **Plugins** → **Add marketplace** with `m-barneto/statline` → **Add plugin**.
+
+If this repository is private, installing needs read access to it on GitHub and a git credential for github.com on your machine (an SSH key, or `gh auth login` then `gh auth setup-git`).
+
+## Install the terminal status line
 
 Requires Node 18+.
 
 ```bash
-node install.mjs          # copies statline.mjs to ~/.claude and updates settings.json
-node install.mjs --link   # or point settings.json at this repo's file (git pull updates it)
+node terminal/install.mjs          # copies statline.mjs to ~/.claude and updates settings.json
+node terminal/install.mjs --link   # or point settings.json at this repo's file (git pull updates it)
 ```
 
 The installer backs up anything it changes to `*.bak` and only touches the `statusLine` key in `~/.claude/settings.json`.
 
 ## How the estimates work
 
-Every refresh records a reading (time, 5h %, weekly %, reset times) to `~/.claude/statline-usage.json`. Estimates are derived from that history:
+Every refresh records a reading (time, 5h %, weekly %, reset times) to `~/.claude/statline-usage.json`; both forms read and write it, so they learn from one history and agree.
 
 - **5-hour:** blends your pace over the last 45 minutes with the window average, so it reacts when you speed up or wind down.
 - **Weekly:** learns how much you typically use in each hour of the week (Tue 2pm vs Sat 2pm) and sums that over the hours left until reset. Uses plain average pace until there are ~2 days of history, fully learned after a week.
@@ -40,7 +66,7 @@ History keeps 6 weeks; readings older than a day are thinned to one per 15 minut
 
 ## Sync across computers (optional)
 
-Limits are account-wide, so readings from any computer describe the same usage. Sharing the history through a **secret GitHub gist** lets every computer learn from all of it.
+Limits are account-wide, so readings from any computer describe the same usage. Sharing the history through a **secret GitHub gist** lets every computer learn from all of it. Sync needs the terminal script installed (the app band triggers it too, when it's there).
 
 1. Create a fine-grained GitHub token with only **Account permissions → Gists: Read and write**.
 2. Create `~/.claude/statline-sync.json`:
@@ -53,13 +79,9 @@ Limits are account-wide, so readings from any computer describe the same usage. 
 3. First computer: `node ~/.claude/statline.mjs --sync-setup` — creates the gist and saves its id.
 4. Other computers: `node ~/.claude/statline.mjs --sync-setup <gist-id>`
 
-The status line then syncs in the background at most every 5 minutes. `--sync` syncs on demand. Errors go to `~/.claude/statline-usage-sync.log`; the status line keeps working from the local copy.
+Syncing then happens in the background at most every 5 minutes; `--sync` syncs on demand. Errors go to `~/.claude/statline-usage-sync.log`.
 
 Secret gists are unlisted, not private: anyone with the link can read them. The gist only ever contains timestamps and percentages — never the token.
-
-## Customizing
-
-Colours live in the `PALETTE` block at the top of `statline.mjs` (24-bit hex). Bar widths are `bar(pct, width = 8)` and `LIMIT_WIDTH`.
 
 ## Files it creates
 
@@ -69,11 +91,30 @@ Colours live in the `PALETTE` block at the top of `statline.mjs` (24-bit hex). B
 | `~/.claude/statline-sync.json` | Gist id and token — keep it out of any repo |
 | `~/.claude/statline-usage-sync.log` | Last sync result |
 
-## Tests
+## Repository layout
 
-```bash
-npm test
+```
+.claude-plugin/marketplace.json   makes this repo installable with /plugin install
+plugin/                           the app band (Claude Code plugin)
+  .claude-plugin/plugin.json
+  hooks/register.tsx              reads usage, draws the band
+  hooks/estimate.ts               history + projections (port of the terminal logic)
+  types/index.d.ts                the plugin's state contract
+  tests/statline.test.tsx
+terminal/                         the terminal status line
+  statline.mjs                    the status line script (also handles gist sync)
+  install.mjs
+  test/
 ```
 
-- `test/sim.mjs` — simulates 2½ weeks of weekday 9–5 usage and checks the learned weekly projection lands on the true total.
-- `test/synctest.mjs` — runs two "computers" against a local mock of the GitHub gist API and checks setup, merging, background sync, and bad-token handling.
+## Customizing
+
+Colours: `C` at the top of `plugin/hooks/register.tsx`, and `PALETTE` at the top of `terminal/statline.mjs` (24-bit hex). Bar width: `BAR` / `LIMIT_WIDTH`. Keep the estimator in `plugin/hooks/estimate.ts` and `terminal/statline.mjs` in step so both forms agree.
+
+## Development
+
+```bash
+npm test               # terminal simulation + sync tests, then the plugin's tests
+npm run validate       # claude plugin validate plugin
+claude --plugin-dir plugin   # run a session with your working copy of the band
+```

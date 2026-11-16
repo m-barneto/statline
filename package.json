@@ -2,14 +2,17 @@
   "name": "statline",
   "version": "1.0.0",
   "private": true,
-  "description": "Claude Code status line: context meter, plan-limit bars, and run-out estimates with optional gist sync.",
+  "description": "Claude Code usage display: a terminal status line and an app band showing context, plan-limit bars, and run-out estimates.",
   "type": "module",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "setup": "node install.mjs",
-    "setup:link": "node install.mjs --link",
-    "test": "node test/sim.mjs && node test/synctest.mjs"
+    "setup": "node terminal/install.mjs",
+    "setup:link": "node terminal/install.mjs --link",
+    "test": "npm run test:terminal && npm run test:plugin",
+    "test:terminal": "node terminal/test/sim.mjs && node terminal/test/synctest.mjs",
+    "test:plugin": "claude plugin test plugin",
+    "validate": "claude plugin validate plugin"
   }
 }

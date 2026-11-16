@@ -1,0 +1,9 @@
+{
+  "name": "statline",
+  "version": "0.1.0",
+  "description": "A band above the prompt: model, effort, context meter, and 5-hour / weekly plan-limit bars with run-out estimates.",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "m-barneto"
+  }
+}
